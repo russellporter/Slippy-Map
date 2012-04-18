@@ -1,0 +1,328 @@
+<html>
+<head>
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=true"></script>
+<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="http://documentcloud.github.com/underscore/underscore-min.js"></script>
+<meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta names="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<style>
+html { height: 100% }
+body { height: 100%; margin: 0px; padding: 0px }
+#map_canvas { height: 100% }
+</style>
+<title>Maps</title>
+<script type="text/javascript">
+var map;
+var transparentOverlayState = {}
+
+var transparenthikingroutes = new google.maps.ImageMapType({
+	getTileUrl: function(ll, z) {
+		var X = ll.x % (1 << z);
+		return "http://osm.lonvia.de/hiking/" + z + "/" + X + "/" + ll.y + ".png";
+	},
+	tileSize: new google.maps.Size(256, 256),
+	isPng: true,
+	maxZoom: 18,
+	name: "Hiking Routes (Lonvia)",
+	alt: "Hiking Routes (Lonvia)"
+});
+
+var transparenthillshades = new google.maps.ImageMapType({
+	getTileUrl: function(ll, z) {
+		var X = ll.x % (1 << z);
+		return "http://toolserver.org/~cmarqu/hill/" + z + "/" + X + "/" + ll.y + ".png";
+	},
+	tileSize: new google.maps.Size(256, 256),
+	isPng: true,
+	maxZoom: 18,
+	name: "Hillshades",
+	alt: "Hillshades"
+});
+
+var transparentridethecity = new google.maps.ImageMapType({
+	getTileUrl: function(ll, z) {
+		var X = ll.x % (1 << z);
+		return "http://tiles.ridethecity.com/tiles/bikes/" + z + "/" + X + "/" + ll.y + ".png";
+	},
+	tileSize: new google.maps.Size(256, 256),
+	isPng: true,
+	maxZoom: 18,
+	name: "RideTheCity",
+	alt: "RideTheCity"
+});
+  
+var transparentsurfaces = new google.maps.ImageMapType({
+	getTileUrl: function(ll, z) {
+		var X = ll.x % (1 << z);
+		return "http://osm.kosmosnimki.ru/surface/" + z + "/" + X + "/" + ll.y + ".png";
+	},
+	tileSize: new google.maps.Size(256, 256),
+	isPng: true,
+	maxZoom: 18,
+	name: "Transparent Surfaces",
+	alt: "Transparent Surfaces"
+});
+
+var transparentbuildings = new google.maps.ImageMapType({
+	getTileUrl: function(ll, z) {
+		var X = ll.x % (1 << z);
+		return "http://osm.kosmosnimki.ru/buildings/" + z + "/" + X + "/" + ll.y + ".png";
+	},
+	tileSize: new google.maps.Size(256, 256),
+	isPng: true,
+	maxZoom: 18,
+	name: "Transparent Buildings",
+	alt: "Transparent Buildings"
+});
+
+var bergfex = new google.maps.ImageMapType({
+	getTileUrl: function(coord, zoom) {
+		return "http://static2.bergfex.at/images/amap/" + zoom + "/" + zoom + "_"+ coord.x + "_" + coord.y + ".png";
+	},
+	tileSize: new google.maps.Size(256, 256),
+	isPng: true,
+	maxZoom: 13,
+	minZoom: 4,
+	name: "",
+	alt: "Bergfex Austria"
+});
+  
+var osmLayers = [{
+	urls: [
+		"http://c.tile2.opencyclemap.org/transport/", 
+		"http://b.tile2.opencyclemap.org/transport/", 
+		"http://a.tile2.opencyclemap.org/transport/"
+	],
+	id: "transport",
+	name: "Transport"
+},{
+	id: "mapnikOsm",
+	name: "Mapnik (OSM)",
+	urls: [
+		"http://a.tile.openstreetmap.org/",
+		"http://b.tile.openstreetmap.org/",
+		"http://c.tile.openstreetmap.org/"
+	]
+},{
+	id: "mapnikBing",
+	name: "Mapnik (Bing)",
+	urls: [
+		"http://a.osm.virtualearth.net/", 
+		"http://b.osm.virtualearth.net/", 
+		"http://c.osm.virtualearth.net/"
+	]
+},{
+	id: "mapQuestOpen",
+	name: "MQ Open",
+	urls: [
+		"http://otile1.mqcdn.com/tiles/1.0.0/osm/", 
+		"http://otile2.mqcdn.com/tiles/1.0.0/osm/", 
+		"http://otile3.mqcdn.com/tiles/1.0.0/osm/", 
+		"http://otile4.mqcdn.com/tiles/1.0.0/osm/"
+	]
+},{
+	id: "mapQuestOpenAerial",
+	name: "MQ Open Aerial",
+	urls: [
+		"http://oatile1.mqcdn.com/tiles/1.0.0/sat/", 
+		"http://oatile2.mqcdn.com/tiles/1.0.0/sat/", 
+		"http://oatile3.mqcdn.com/tiles/1.0.0/sat/", 
+		"http://oatile4.mqcdn.com/tiles/1.0.0/sat/"
+	]
+},{
+	id: "stamenTerrain",
+	name: "Stamen Terrain",
+	urls: [
+		"http://a.tile.stamen.com/terrain/",
+		"http://b.tile.stamen.com/terrain/", 
+		"http://c.tile.stamen.com/terrain/", 
+		"http://d.tile.stamen.com/terrain/"
+	]
+},{
+	id: "stamenWatercolor",
+	name: "Stamen Watercolor",
+	urls: [
+		"http://a.tile.stamen.com/watercolor/",
+		"http://b.tile.stamen.com/watercolor/",
+		"http://c.tile.stamen.com/watercolor/",
+		"http://d.tile.stamen.com/watercolor/",
+	]
+},{
+	id: "stamenToner",
+	name: "Stamen Toner",
+	urls: [
+		"http://a.tile.stamen.com/toner/",
+		"http://b.tile.stamen.com/toner/",
+		"http://c.tile.stamen.com/toner/",
+		"http://d.tile.stamen.com/toner/",
+	]
+},{
+	id: "hikeBike",
+	name: "HikeBike",
+	maxZoom: 16,
+	urls: ["http://toolserver.org/tiles/hikebike/"]
+},{
+	id: "openCycleMap",
+	name: "OpenCycleMap",
+	urls: [
+		"http://a.tile.opencyclemap.org/cycle/",
+		"http://b.tile.opencyclemap.org/cycle/",
+		"http://c.tile.opencyclemap.org/cycle/"
+	]
+},{
+	id: "stamenOpenTerrain",
+	name: "Stamen Blank",
+	urls: [
+		"http://a.tile.stamen.com/terrain-background/",
+		"http://b.tile.stamen.com/terrain-background/",
+		"http://c.tile.stamen.com/terrain-background/"
+	]
+}];
+
+function initialize() {
+	if(localStorage["slippy.lat"] != null) {
+		var latlng = new google.maps.LatLng(localStorage["slippy.lat"],localStorage["slippy.lng"]);
+		var zoom = Number(localStorage["slippy.zoom"]);
+	} else {
+		var zoom=2;
+		var latlng = new google.maps.LatLng(40, -100);
+	}
+	
+	var myOptions = {
+	  zoom: zoom,
+	  center: latlng,
+	  mapTypeId: google.maps.MapTypeId.ROADMAP
+	};
+   
+	map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
+	
+	var mapTypeIds = ['bergfex', google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.HYBRID, google.maps.MapTypeId.TERRAIN];
+    _.each(osmLayers, function(layer) {
+		var mapLayer = new google.maps.ImageMapType({
+			getTileUrl: function(ll, z) {
+				var min = 0;
+				var max = layer.urls.length - 1;
+				var tileUrlId = Math.floor(Math.random() * (max - min + 1)) + min;
+				
+				var X = ll.x % (1 << z);
+				return layer.urls[tileUrlId] + z + "/" + X + "/" + ll.y + ".png";
+			},
+			tileSize: new google.maps.Size(256, 256),
+			isPng: true,
+			maxZoom: layer.maxZoom || 18,
+			minZoom: layer.minZoom || 0,
+			name: layer.name,
+			alt: layer.name
+		});
+		
+		map.mapTypes.set(layer.id, mapLayer);
+		mapTypeIds.push(layer.id);
+    });
+
+	map.mapTypes.set('bergfex', bergfex);
+	map.setMapTypeId(localStorage["slippy.layer"] || 'mapnikOsm');
+  
+	var optionsUpdate = {
+		mapTypeControlOptions: {
+			mapTypeIds: mapTypeIds,
+			style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+		}
+	};
+	
+	map.setOptions(optionsUpdate);
+	transparentOverlayState['transparenthikingroutes'] = 0;
+	transparentOverlayState['transparenthillshades'] = 0;
+	transparentOverlayState['transparentridethecity'] = 0;
+	transparentOverlayState['transparentsurfaces'] = 0;
+	transparentOverlayState['transparentbuildings'] = 0;
+  
+	google.maps.event.addListener(map, 'center_changed', function() {
+		document.getElementById("osmEditorLink").href = 'http://www.openstreetmap.org/edit?lat='+map.getCenter().lat()+'&lon='+map.getCenter().lng()+'&zoom='+map.getZoom();
+	});
+}
+
+function getLocation() {
+	if (navigator.geolocation) {
+		navigator.geolocation.getCurrentPosition(success, error);
+	} else {
+		error('not supported');
+	}
+}
+
+function showHideOverlays(name) {
+	if(name === 'transparenthillshades') {
+		if(transparentOverlayState['transparenthillshades'] === 1) {
+			//hide
+			transparentOverlayState['transparenthillshades'] = 0;
+			map.overlayMapTypes.removeAt(1);
+		} else {
+			transparentOverlayState['transparenthillshades'] = 1;
+			map.overlayMapTypes.insertAt(1, transparenthillshades);
+		}
+	}
+	if(name === 'transparenthikingroutes') {
+		if(transparentOverlayState['transparenthikingroutes'] === 1) {
+			//hide
+			transparentOverlayState['transparenthikingroutes'] = 0;
+			map.overlayMapTypes.removeAt(0);
+		} else {
+			transparentOverlayState['transparenthikingroutes'] = 1;
+			map.overlayMapTypes.insertAt(0, transparenthikingroutes);
+		}
+	}
+	if(name === 'transparentsurfaces') {
+		if(transparentOverlayState['transparentsurfaces'] === 1) {
+			//hide
+			transparentOverlayState['transparentsurfaces'] = 0;
+			map.overlayMapTypes.removeAt(0);
+		} else {
+			transparentOverlayState['transparentsurfaces'] = 1;
+			map.overlayMapTypes.insertAt(0, transparentsurfaces);
+		}
+	}
+	if(name === 'transparentbuildings') {
+		if(transparentOverlayState['transparentbuildings'] === 1) {
+			//hide
+			transparentOverlayState['transparentbuildings'] = 0;
+			map.overlayMapTypes.removeAt(0);
+		} else {
+			transparentOverlayState['transparentbuildings'] = 1;
+			map.overlayMapTypes.insertAt(0, transparentbuildings);
+		}
+	}
+	if(name === 'transparentridethecity') {
+		if(transparentOverlayState['transparentridethecity'] === 1) {
+			//hide
+			transparentOverlayState['transparentridethecity'] = 0;
+			map.overlayMapTypes.removeAt(0);
+		} else {
+			transparentOverlayState['transparentridethecity'] = 1;
+			map.overlayMapTypes.insertAt(0, transparentridethecity);
+		}
+	}
+}
+function error() {}
+function success(position) {
+	var latlng = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+	map.setZoom(15);
+	map.setCenter(latlng);
+}
+function unload() {
+	localStorage.setItem("slippy.layer", map.getMapTypeId());
+	localStorage.setItem("slippy.lat", map.getCenter().lat());
+	localStorage.setItem("slippy.lng", map.getCenter().lng());
+	localStorage.setItem("slippy.zoom", map.getZoom());
+	GUnload();
+}
+  
+</script>
+</head>
+<body onload="initialize()" onunload="unload()">
+  <div id="map_canvas" style="width:100%; height:100%"></div>
+  <div style="display:block;position:absolute; bottom:20px; opacity:0.8; right:0;width:200px; background:#eee"><p style="opacity:1.0; padding:10px;font-family:Helvetica; font-size:small" ><a style="cursor: pointer" onclick="getLocation();">Current Location</a><br/><a style="cursor: pointer" onclick="showHideOverlays('transparenthillshades');">Show/Hide Hillshades</a><br/><a style="cursor: pointer" onclick="showHideOverlays('transparentridethecity');">Show/Hide RideTheCity</a><br/><a style="cursor: pointer" onclick="showHideOverlays('transparenthikingroutes');">Show/Hide Hiking Routes</a><br/><a style="cursor: pointer" onclick="showHideOverlays('transparentsurfaces');">Show/Hide Surfaces</a><br/>
+  <a id="osmEditorLink" href="">Edit in Potlatch 2</a><br/>
+  <a style="cursor: pointer" onclick="showHideOverlays('transparentbuildings');">Show/Hide 3D Buildings</a><br/>By OpenStreetMap CC-BY-SA</p></div>
+</body>
+</html>
